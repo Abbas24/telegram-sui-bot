@@ -1,0 +1,11 @@
+# Binaries
+bot
+bot-linux
+*.exe
+
+# Dependencies
+go.mod
+go.sum
+
+# Environment
+.env

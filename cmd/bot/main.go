@@ -260,11 +260,6 @@ func main() {
 			} else if strings.HasPrefix(query.Data, "client_info_") {
 				clientID, _ := strconv.Atoi(strings.TrimPrefix(query.Data, "client_info_"))
 				clients, _ := suiClient.GetClients()
-				// inboundsList, _ := suiClient.GetInbounds()
-				// inboundMap := make(map[int]sui.Inbound)
-				// for _, ib := range inboundsList {
-				// 	inboundMap[ib.ID] = ib
-				// }
 
 				var targetClient *sui.ClientInfo
 				for _, c := range clients {
@@ -324,9 +319,9 @@ func main() {
 						"🗓️ تاریخ پایان: %s%s\n"+
 						"🕒 آخرین اتصال: %s\n\n"+
 						"🔗 لینک‌های سابسکریپشن:\n"+
-						"۱. ساب عمومی (لینک‌ها - v2rayN/v2rayNG):\n`%s`\n"+
-						"۲. ساب سینگ‌باکس (JSON - sing-box/Hiddify):\n`%s?format=json`\n"+
-						"۳. ساب کلش (Clash - Clash.Meta/Mihomo):\n`%s?format=clash`",
+						"• [ساب عمومی](%s)\n"+
+						"• [ساب سینگ‌باکس](%s?format=json)\n"+
+						"• [ساب کلش](%s?format=clash)",
 						targetClient.Name,
 						status,
 						toPersianDigits(fmt.Sprintf("%.2f", volumeGB)),

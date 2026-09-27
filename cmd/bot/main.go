@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	_ "time/tzdata"
 
 	"github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/joho/godotenv"
@@ -35,6 +36,75 @@ var sessions = make(map[int64]*SessionData)
 
 func isAdmin(id int64, admins map[int64]bool) bool {
 	return admins[id]
+}
+
+// gregorianToJalali converts a Gregorian date to the Jalali (Persian) calendar.
+// Algorithm based on the widely used jalaali algorithm.
+func gregorianToJalali(gy, gm, gd int) (jy, jm, jd int) {
+	gy -= 1600
+	gm--
+	gd--
+
+	gDayNo := 365*gy + (gy+3)/4 - (gy+99)/100 + (gy+399)/400
+	gDaysInMonth := [12]int{31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
+	for i := 0; i < gm; i++ {
+		gDayNo += gDaysInMonth[i]
+	}
+	if gm > 1 && ((gy+1600)%4 == 0 && (gy+1600)%100 != 0 || (gy+1600)%400 == 0) {
+		gDayNo++
+	}
+	gDayNo += gd
+
+	jDayNo := gDayNo - 79
+
+	jNp := jDayNo / 12053
+	jDayNo %= 12053
+
+	jy = 979 + 33*jNp + 4*(jDayNo/1461)
+	jDayNo %= 1461
+
+	if jDayNo >= 366 {
+		jy += (jDayNo - 1) / 365
+		jDayNo = (jDayNo - 1) % 365
+	}
+
+	if jDayNo < 186 {
+		jm = 1 + jDayNo/31
+		jd = 1 + jDayNo%31
+	} else {
+		jm = 7 + (jDayNo-186)/30
+		jd = 1 + (jDayNo-186)%30
+	}
+	return
+}
+
+// toPersianDigits converts ASCII digits in a string to Persian digits.
+func toPersianDigits(s string) string {
+	digits := map[rune]rune{
+		'0': '۰', '1': '۱', '2': '۲', '3': '۳', '4': '۴',
+		'5': '۵', '6': '۶', '7': '۷', '8': '۸', '9': '۹',
+	}
+	return strings.Map(func(r rune) rune {
+		if d, ok := digits[r]; ok {
+			return d
+		}
+		return r
+	}, s)
+}
+
+// formatJalali formats a time in the Asia/Tehran timezone as a Jalali date,
+// optionally including the clock time. Digits are Persian.
+func formatJalali(t time.Time, withTime bool) string {
+	loc, err := time.LoadLocation("Asia/Tehran")
+	if err != nil {
+		loc = time.Local
+	}
+	t = t.In(loc)
+	jy, jm, jd := gregorianToJalali(t.Year(), int(t.Month()), t.Day())
+	if withTime {
+		return toPersianDigits(fmt.Sprintf("%d/%02d/%02d %02d:%02d", jy, jm, jd, t.Hour(), t.Minute()))
+	}
+	return toPersianDigits(fmt.Sprintf("%d/%02d/%02d", jy, jm, jd))
 }
 
 func sendMainMenu(bot *tgbotapi.BotAPI, chatID int64, messageID *int) {
@@ -211,12 +281,25 @@ func main() {
 
 					createdStr := "نامشخص"
 					if targetClient.CreatedAt > 0 {
-						createdStr = time.Unix(targetClient.CreatedAt, 0).Format("2006-01-02 15:04")
+						createdStr = formatJalali(time.Unix(targetClient.CreatedAt, 0), true)
+					}
+
+					expiryStr := "نامشخص"
+					daysLeftStr := ""
+					if targetClient.Expiry > 0 {
+						expiryTime := time.Unix(targetClient.Expiry, 0)
+						expiryStr = formatJalali(expiryTime, false)
+						daysLeft := int(time.Until(expiryTime).Hours() / 24)
+						if daysLeft < 0 {
+							daysLeftStr = fmt.Sprintf(" (منقضی شده)")
+						} else {
+							daysLeftStr = toPersianDigits(fmt.Sprintf(" (%d روز باقی‌مانده)", daysLeft))
+						}
 					}
 
 					onlineStr := "آفلاین"
 					if targetClient.OnlineAt > 0 {
-						onlineStr = time.Unix(targetClient.OnlineAt, 0).Format("2006-01-02 15:04")
+						onlineStr = formatJalali(time.Unix(targetClient.OnlineAt, 0), true)
 					}
 
 					subBase := fmt.Sprintf("%s/%s", subURL, targetClient.Name)
@@ -230,24 +313,39 @@ func main() {
 						}
 					}
 
+					volumeGB := float64(targetClient.Volume) / (1024 * 1024 * 1024)
+					uploadGB := float64(targetClient.TotalUpload) / (1024 * 1024 * 1024)
+					downloadGB := float64(targetClient.TotalDownload) / (1024 * 1024 * 1024)
+					usedGB := uploadGB + downloadGB
+					leftGB := volumeGB - usedGB
+					if leftGB < 0 {
+						leftGB = 0
+					}
+
 					msgText := fmt.Sprintf("👤 اطلاعات کاربر: *%s*\n"+
 						"📊 وضعیت: %s\n"+
-						"💾 حجم کل: %.2f GB\n"+
-						"⬆️ مصرف آپلود: %.2f GB\n"+
-						"⬇️ مصرف دانلود: %.2f GB\n"+
+						"💾 حجم کل: %s GB\n"+
+						"⬆️ مصرف آپلود: %s GB\n"+
+						"⬇️ مصرف دانلود: %s GB\n"+
+						"📥 حجم مصرف‌شده: %s GB\n"+
+						"📤 حجم باقی‌مانده: %s GB\n"+
 						"📅 تاریخ ایجاد: %s\n"+
+						"🗓️ تاریخ پایان: %s%s\n"+
 						"🕒 آخرین اتصال: %s\n\n"+
 						"🔗 لینک‌های سابسکریپشن:\n"+
-						"۱. ساب عمومی (JSON):\n`%s`\n"+
-						"۲. ساب کلش (Clash):\n`%s?clash=1`\n"+
-						"۳. ساب سینگ‌باکس (Sing-box):\n`%s?singbox=1`\n\n"+
+						"۱. ساب عمومی (لینک‌ها - v2rayN/v2rayNG):\n`%s`\n"+
+						"۲. ساب سینگ‌باکس (JSON - sing-box/Hiddify):\n`%s?format=json`\n"+
+						"۳. ساب کلش (Clash - Clash.Meta/Mihomo):\n`%s?format=clash`\n\n"+
 						"🔗 لینک‌های کانفیگ تکی:\n%s",
 						targetClient.Name,
 						status,
-						float64(targetClient.Volume)/(1024*1024*1024),
-						float64(targetClient.TotalUpload)/(1024*1024*1024),
-						float64(targetClient.TotalDownload)/(1024*1024*1024),
+						toPersianDigits(fmt.Sprintf("%.2f", volumeGB)),
+						toPersianDigits(fmt.Sprintf("%.2f", uploadGB)),
+						toPersianDigits(fmt.Sprintf("%.2f", downloadGB)),
+						toPersianDigits(fmt.Sprintf("%.2f", usedGB)),
+						toPersianDigits(fmt.Sprintf("%.2f", leftGB)),
 						createdStr,
+						expiryStr, daysLeftStr,
 						onlineStr,
 						subBase,
 						subBase,

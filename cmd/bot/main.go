@@ -260,11 +260,11 @@ func main() {
 			} else if strings.HasPrefix(query.Data, "client_info_") {
 				clientID, _ := strconv.Atoi(strings.TrimPrefix(query.Data, "client_info_"))
 				clients, _ := suiClient.GetClients()
-				inboundsList, _ := suiClient.GetInbounds()
-				inboundMap := make(map[int]sui.Inbound)
-				for _, ib := range inboundsList {
-					inboundMap[ib.ID] = ib
-				}
+				// inboundsList, _ := suiClient.GetInbounds()
+				// inboundMap := make(map[int]sui.Inbound)
+				// for _, ib := range inboundsList {
+				// 	inboundMap[ib.ID] = ib
+				// }
 
 				var targetClient *sui.ClientInfo
 				for _, c := range clients {
@@ -304,15 +304,6 @@ func main() {
 
 					subBase := fmt.Sprintf("%s/%s", subURL, targetClient.Name)
 
-					// Build individual config links for this user's inbounds
-					configLinks := ""
-					for _, ibID := range targetClient.Inbounds {
-						ib, ok := inboundMap[ibID]
-						if ok {
-							configLinks += fmt.Sprintf("• %s (%s):\n`%s/%s/%s`\n", ib.Remark, ib.Type, subURL, ib.Remark, targetClient.Name)
-						}
-					}
-
 					volumeGB := float64(targetClient.Volume) / (1024 * 1024 * 1024)
 					uploadGB := float64(targetClient.TotalUpload) / (1024 * 1024 * 1024)
 					downloadGB := float64(targetClient.TotalDownload) / (1024 * 1024 * 1024)
@@ -335,8 +326,7 @@ func main() {
 						"🔗 لینک‌های سابسکریپشن:\n"+
 						"۱. ساب عمومی (لینک‌ها - v2rayN/v2rayNG):\n`%s`\n"+
 						"۲. ساب سینگ‌باکس (JSON - sing-box/Hiddify):\n`%s?format=json`\n"+
-						"۳. ساب کلش (Clash - Clash.Meta/Mihomo):\n`%s?format=clash`\n\n"+
-						"🔗 لینک‌های کانفیگ تکی:\n%s",
+						"۳. ساب کلش (Clash - Clash.Meta/Mihomo):\n`%s?format=clash`",
 						targetClient.Name,
 						status,
 						toPersianDigits(fmt.Sprintf("%.2f", volumeGB)),
@@ -349,8 +339,7 @@ func main() {
 						onlineStr,
 						subBase,
 						subBase,
-						subBase,
-						configLinks)
+						subBase)
 
 					msg := tgbotapi.NewMessage(chatID, msgText)
 					msg.ParseMode = "Markdown"

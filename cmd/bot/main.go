@@ -361,24 +361,6 @@ func handlePackageManagement(bot *tgbotapi.BotAPI, chatID int64) {
 	}
 }
 
-func handlePackageManagement(bot *tgbotapi.BotAPI, chatID int64) {
-	msg := tgbotapi.NewMessage(chatID, "📦 مدیریت پکیج‌ها:")
-	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
-		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("➕ افزودن پکیج", "create_package_flow"),
-			tgbotapi.NewInlineKeyboardButtonData("📋 لیست پکیج‌ها", "list_packages"),
-		),
-		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("✏️ ویرایش پکیج", "edit_package_flow"),
-			tgbotapi.NewInlineKeyboardButtonData("🗑 حذف پکیج", "remove_package_flow"),
-		),
-		tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("🔙 بازگشت به منو اصلی", "main_menu")),
-	)
-	if _, err := bot.Send(msg); err != nil {
-		log.Printf("SendMessage error: %v", err)
-	}
-}
-
 func handleListPackages(bot *tgbotapi.BotAPI, chatID int64) {
 	pkgs, err := packages.LoadPackages()
 	if err != nil {
@@ -445,7 +427,7 @@ func handleRemovePackageFlow(bot *tgbotapi.BotAPI, chatID int64, userID int64) {
 	bot.Send(msg)
 }
 
-func handleSelectInbounds(bot *tgbotapi.BotAPI, chatID int64, userID int64, suiClient *sui.Client) {
+func handleCreateClientFlow(bot *tgbotapi.BotAPI, chatID int64, userID int64, suiClient *sui.Client) {
 	inbounds, err := suiClient.GetInbounds()
 	if err != nil {
 		log.Printf("GetInbounds error: %v", err)

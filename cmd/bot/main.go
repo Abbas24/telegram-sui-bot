@@ -13,6 +13,7 @@ import (
 	"github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/joho/godotenv"
 	"github.com/user/telegram-sui-bot/internal/sui"
+	"github.com/user/telegram-sui-bot/internal/packages"
 )
 
 func parseAdminIDs(str string) map[int64]bool {
@@ -34,6 +35,7 @@ type SessionData struct {
 	// Data for inbound operations
 	InboundID int
 	Inbound   map[string]interface{}
+	Package   packages.Package
 }
 
 // sessions protected by sessionsMu
@@ -171,6 +173,7 @@ func sendMainMenu(bot *tgbotapi.BotAPI, chatID int64, messageID *int, userName s
 		),
 		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData("⚙️ مدیریت اینباندها", "list_inbounds"),
+				tgbotapi.NewInlineKeyboardButtonData("📦 مدیریت پکیج‌ها", "package_management"),
 		),
 	)
 	if messageID != nil {
@@ -340,7 +343,107 @@ func handleListInbounds(bot *tgbotapi.BotAPI, chatID int64, suiClient *sui.Clien
 	}
 }
 
-func handleCreateClientFlow(bot *tgbotapi.BotAPI, chatID int64, userID int64, suiClient *sui.Client) {
+func handlePackageManagement(bot *tgbotapi.BotAPI, chatID int64) {
+	msg := tgbotapi.NewMessage(chatID, "📦 مدیریت پکیج‌ها:")
+	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("➕ افزودن پکیج", "create_package_flow"),
+			tgbotapi.NewInlineKeyboardButtonData("📋 لیست پکیج‌ها", "list_packages"),
+		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("✏️ ویرایش پکیج", "edit_package_flow"),
+			tgbotapi.NewInlineKeyboardButtonData("🗑 حذف پکیج", "remove_package_flow"),
+		),
+		tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("🔙 بازگشت به منو اصلی", "main_menu")),
+	)
+	if _, err := bot.Send(msg); err != nil {
+		log.Printf("SendMessage error: %v", err)
+	}
+}
+
+func handlePackageManagement(bot *tgbotapi.BotAPI, chatID int64) {
+	msg := tgbotapi.NewMessage(chatID, "📦 مدیریت پکیج‌ها:")
+	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("➕ افزودن پکیج", "create_package_flow"),
+			tgbotapi.NewInlineKeyboardButtonData("📋 لیست پکیج‌ها", "list_packages"),
+		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("✏️ ویرایش پکیج", "edit_package_flow"),
+			tgbotapi.NewInlineKeyboardButtonData("🗑 حذف پکیج", "remove_package_flow"),
+		),
+		tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("🔙 بازگشت به منو اصلی", "main_menu")),
+	)
+	if _, err := bot.Send(msg); err != nil {
+		log.Printf("SendMessage error: %v", err)
+	}
+}
+
+func handleListPackages(bot *tgbotapi.BotAPI, chatID int64) {
+	pkgs, err := packages.LoadPackages()
+	if err != nil {
+		log.Printf("LoadPackages error: %v", err)
+		bot.Send(tgbotapi.NewMessage(chatID, "❌ خطا در بارگذاری پکیج‌ها"))
+		return
+	}
+	var rows [][]tgbotapi.InlineKeyboardButton
+	for _, pkg := range pkgs {
+		btnText := fmt.Sprintf("%s (%d GB, %d روز)", pkg.Name, pkg.Volume, pkg.Duration)
+		rows = append(rows, tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData(btnText, fmt.Sprintf("package_info_%s", pkg.ID)),
+		))
+	}
+	rows = append(rows, tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("🔙 بازگشت به مدیریت پکیج‌ها", "package_management")))
+	rows = append(rows, tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("🏠 منو اصلی", "main_menu")))
+
+	msg := tgbotapi.NewMessage(chatID, "📦 لیست پکیج‌ها:")
+	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(rows...)
+	if _, err := bot.Send(msg); err != nil {
+		log.Printf("SendMessage error: %v", err)
+	}
+}
+
+func handleCreatePackageFlow(bot *tgbotapi.BotAPI, chatID int64, userID int64) {
+	setSession(userID, &SessionData{Step: "INPUT_PACKAGE_NAME"})
+	msg := tgbotapi.NewMessage(chatID, "🏷 نام پکیج را وارد کنید:")
+	if _, err := bot.Send(msg); err != nil {
+		log.Printf("SendMessage error: %v", err)
+	}
+}
+
+func handleEditPackageFlow(bot *tgbotapi.BotAPI, chatID int64, userID int64) {
+	pkgs, err := packages.LoadPackages()
+	if err != nil {
+		bot.Send(tgbotapi.NewMessage(chatID, "❌ خطا در بارگذاری پکیج‌ها"))
+		return
+	}
+	var rows [][]tgbotapi.InlineKeyboardButton
+	for _, pkg := range pkgs {
+		rows = append(rows, tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData(pkg.Name, fmt.Sprintf("edit_pkg_%s", pkg.ID)),
+		))
+	}
+	msg := tgbotapi.NewMessage(chatID, "✏️ پکیجی را برای ویرایش انتخاب کنید:")
+	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(rows...)
+	bot.Send(msg)
+}
+
+func handleRemovePackageFlow(bot *tgbotapi.BotAPI, chatID int64, userID int64) {
+	pkgs, err := packages.LoadPackages()
+	if err != nil {
+		bot.Send(tgbotapi.NewMessage(chatID, "❌ خطا در بارگذاری پکیج‌ها"))
+		return
+	}
+	var rows [][]tgbotapi.InlineKeyboardButton
+	for _, pkg := range pkgs {
+		rows = append(rows, tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData(pkg.Name, fmt.Sprintf("remove_pkg_%s", pkg.ID)),
+		))
+	}
+	msg := tgbotapi.NewMessage(chatID, "🗑 پکیجی را برای حذف انتخاب کنید:")
+	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(rows...)
+	bot.Send(msg)
+}
 	inbounds, err := suiClient.GetInbounds()
 	if err != nil {
 		log.Printf("GetInbounds error: %v", err)
@@ -462,16 +565,53 @@ func main() {
 					log.Printf("DeleteMessage error: %v", err)
 				}
 				handleListClients(bot, chatID, suiClient)
-			} else if query.Data == "list_inbounds" {
+				} else if query.Data == "list_inbounds" {
+					if _, err := bot.Send(tgbotapi.NewDeleteMessage(chatID, messageID)); err != nil {
+						log.Printf("DeleteMessage error: %v", err)
+					}
+					handleListInbounds(bot, chatID, suiClient)
+				} else if query.Data == "package_management" {
+						if _, err := bot.Send(tgbotapi.NewDeleteMessage(chatID, messageID)); err != nil {
+							log.Printf("DeleteMessage error: %v", err)
+						}
+						handlePackageManagement(bot, chatID)
+					} else if query.Data == "list_packages" {
+					if _, err := bot.Send(tgbotapi.NewDeleteMessage(chatID, messageID)); err != nil {
+						log.Printf("DeleteMessage error: %v", err)
+					}
+					handleListPackages(bot, chatID)
+			} else if query.Data == "create_package_flow" {
 				if _, err := bot.Send(tgbotapi.NewDeleteMessage(chatID, messageID)); err != nil {
 					log.Printf("DeleteMessage error: %v", err)
 				}
-				handleListInbounds(bot, chatID, suiClient)
+				handleCreatePackageFlow(bot, chatID, userID)
+			} else if query.Data == "edit_package_flow" {
+				if _, err := bot.Send(tgbotapi.NewDeleteMessage(chatID, messageID)); err != nil {
+					log.Printf("DeleteMessage error: %v", err)
+				}
+				handleEditPackageFlow(bot, chatID, userID)
+			} else if query.Data == "remove_package_flow" {
+				if _, err := bot.Send(tgbotapi.NewDeleteMessage(chatID, messageID)); err != nil {
+					log.Printf("DeleteMessage error: %v", err)
+				}
+				handleRemovePackageFlow(bot, chatID, userID)
 			} else if query.Data == "create_client_flow" {
 				if _, err := bot.Send(tgbotapi.NewDeleteMessage(chatID, messageID)); err != nil {
 					log.Printf("DeleteMessage error: %v", err)
 				}
 				handleCreateClientFlow(bot, chatID, userID, suiClient)
+			} else if strings.HasPrefix(query.Data, "edit_pkg_") {
+				pkgID := strings.TrimPrefix(query.Data, "edit_pkg_")
+				// ... implementation for editing
+				bot.Request(tgbotapi.NewCallback(query.ID, fmt.Sprintf("ویرایش پکیج %s", pkgID)))
+			} else if strings.HasPrefix(query.Data, "remove_pkg_") {
+				pkgID := strings.TrimPrefix(query.Data, "remove_pkg_")
+				err := packages.DeletePackage(pkgID)
+				if err != nil {
+					bot.Request(tgbotapi.NewCallback(query.ID, "❌ خطا در حذف پکیج"))
+				} else {
+					bot.Request(tgbotapi.NewCallback(query.ID, "✅ پکیج حذف شد"))
+				}
 			} else if query.Data == "main_menu" {
 				if _, err := bot.Send(tgbotapi.NewDeleteMessage(chatID, messageID)); err != nil {
 					log.Printf("DeleteMessage error: %v", err)

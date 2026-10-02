@@ -173,7 +173,7 @@ func sendMainMenu(bot *tgbotapi.BotAPI, chatID int64, messageID *int, userName s
 		),
 		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData("⚙️ مدیریت اینباندها", "list_inbounds"),
-				tgbotapi.NewInlineKeyboardButtonData("📦 مدیریت پکیج‌ها", "package_management"),
+				tgbotapi.NewInlineKeyboardButtonData("📦 مدیریت بسته‌ها", "package_management"),
 		),
 	)
 	if messageID != nil {
@@ -344,15 +344,15 @@ func handleListInbounds(bot *tgbotapi.BotAPI, chatID int64, suiClient *sui.Clien
 }
 
 func handlePackageManagement(bot *tgbotapi.BotAPI, chatID int64) {
-	msg := tgbotapi.NewMessage(chatID, "📦 مدیریت پکیج‌ها:")
+	msg := tgbotapi.NewMessage(chatID, "📦 مدیریت بسته‌ها:")
 	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("➕ افزودن پکیج", "create_package_flow"),
-			tgbotapi.NewInlineKeyboardButtonData("📋 لیست پکیج‌ها", "list_packages"),
+			tgbotapi.NewInlineKeyboardButtonData("➕ افزودن بسته", "create_package_flow"),
+			tgbotapi.NewInlineKeyboardButtonData("📋 لیست بسته‌ها", "list_packages"),
 		),
 		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("✏️ ویرایش پکیج", "edit_package_flow"),
-			tgbotapi.NewInlineKeyboardButtonData("🗑 حذف پکیج", "remove_package_flow"),
+			tgbotapi.NewInlineKeyboardButtonData("✏️ ویرایش بسته", "edit_package_flow"),
+			tgbotapi.NewInlineKeyboardButtonData("🗑 حذف بسته", "remove_package_flow"),
 		),
 		tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("🔙 بازگشت به منو اصلی", "main_menu")),
 	)
@@ -365,7 +365,7 @@ func handleListPackages(bot *tgbotapi.BotAPI, chatID int64) {
 	pkgs, err := packages.LoadPackages()
 	if err != nil {
 		log.Printf("LoadPackages error: %v", err)
-		bot.Send(tgbotapi.NewMessage(chatID, "❌ خطا در بارگذاری پکیج‌ها"))
+		bot.Send(tgbotapi.NewMessage(chatID, "❌ خطا در بارگذاری بسته‌ها"))
 		return
 	}
 	var rows [][]tgbotapi.InlineKeyboardButton
@@ -375,10 +375,10 @@ func handleListPackages(bot *tgbotapi.BotAPI, chatID int64) {
 			tgbotapi.NewInlineKeyboardButtonData(btnText, fmt.Sprintf("package_info_%s", pkg.ID)),
 		))
 	}
-	rows = append(rows, tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("🔙 بازگشت به مدیریت پکیج‌ها", "package_management")))
+	rows = append(rows, tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("🔙 بازگشت به مدیریت بسته‌ها", "package_management")))
 	rows = append(rows, tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("🏠 منو اصلی", "main_menu")))
 
-	msg := tgbotapi.NewMessage(chatID, "📦 لیست پکیج‌ها:")
+	msg := tgbotapi.NewMessage(chatID, "📦 لیست بسته‌ها:")
 	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(rows...)
 	if _, err := bot.Send(msg); err != nil {
 		log.Printf("SendMessage error: %v", err)
@@ -387,7 +387,7 @@ func handleListPackages(bot *tgbotapi.BotAPI, chatID int64) {
 
 func handleCreatePackageFlow(bot *tgbotapi.BotAPI, chatID int64, userID int64) {
 	setSession(userID, &SessionData{Step: "INPUT_PACKAGE_NAME"})
-	msg := tgbotapi.NewMessage(chatID, "🏷 نام پکیج را وارد کنید:")
+	msg := tgbotapi.NewMessage(chatID, "🏷 نام بسته را وارد کنید:")
 	if _, err := bot.Send(msg); err != nil {
 		log.Printf("SendMessage error: %v", err)
 	}
@@ -396,7 +396,7 @@ func handleCreatePackageFlow(bot *tgbotapi.BotAPI, chatID int64, userID int64) {
 func handleEditPackageFlow(bot *tgbotapi.BotAPI, chatID int64, userID int64) {
 	pkgs, err := packages.LoadPackages()
 	if err != nil {
-		bot.Send(tgbotapi.NewMessage(chatID, "❌ خطا در بارگذاری پکیج‌ها"))
+		bot.Send(tgbotapi.NewMessage(chatID, "❌ خطا در بارگذاری بسته‌ها"))
 		return
 	}
 	var rows [][]tgbotapi.InlineKeyboardButton
@@ -405,7 +405,7 @@ func handleEditPackageFlow(bot *tgbotapi.BotAPI, chatID int64, userID int64) {
 			tgbotapi.NewInlineKeyboardButtonData(pkg.Name, fmt.Sprintf("edit_pkg_%s", pkg.ID)),
 		))
 	}
-	msg := tgbotapi.NewMessage(chatID, "✏️ پکیجی را برای ویرایش انتخاب کنید:")
+	msg := tgbotapi.NewMessage(chatID, "✏️ بستهی را برای ویرایش انتخاب کنید:")
 	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(rows...)
 	bot.Send(msg)
 }
@@ -413,7 +413,7 @@ func handleEditPackageFlow(bot *tgbotapi.BotAPI, chatID int64, userID int64) {
 func handleRemovePackageFlow(bot *tgbotapi.BotAPI, chatID int64, userID int64) {
 	pkgs, err := packages.LoadPackages()
 	if err != nil {
-		bot.Send(tgbotapi.NewMessage(chatID, "❌ خطا در بارگذاری پکیج‌ها"))
+		bot.Send(tgbotapi.NewMessage(chatID, "❌ خطا در بارگذاری بسته‌ها"))
 		return
 	}
 	var rows [][]tgbotapi.InlineKeyboardButton
@@ -422,7 +422,7 @@ func handleRemovePackageFlow(bot *tgbotapi.BotAPI, chatID int64, userID int64) {
 			tgbotapi.NewInlineKeyboardButtonData(pkg.Name, fmt.Sprintf("remove_pkg_%s", pkg.ID)),
 		))
 	}
-	msg := tgbotapi.NewMessage(chatID, "🗑 پکیجی را برای حذف انتخاب کنید:")
+	msg := tgbotapi.NewMessage(chatID, "🗑 بستهی را برای حذف انتخاب کنید:")
 	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(rows...)
 	bot.Send(msg)
 }
@@ -587,14 +587,14 @@ func main() {
 			} else if strings.HasPrefix(query.Data, "edit_pkg_") {
 				pkgID := strings.TrimPrefix(query.Data, "edit_pkg_")
 				// ... implementation for editing
-				bot.Request(tgbotapi.NewCallback(query.ID, fmt.Sprintf("ویرایش پکیج %s", pkgID)))
+				bot.Request(tgbotapi.NewCallback(query.ID, fmt.Sprintf("ویرایش بسته %s", pkgID)))
 			} else if strings.HasPrefix(query.Data, "remove_pkg_") {
 				pkgID := strings.TrimPrefix(query.Data, "remove_pkg_")
 				err := packages.DeletePackage(pkgID)
 				if err != nil {
-					bot.Request(tgbotapi.NewCallback(query.ID, "❌ خطا در حذف پکیج"))
+					bot.Request(tgbotapi.NewCallback(query.ID, "❌ خطا در حذف بسته"))
 				} else {
-					bot.Request(tgbotapi.NewCallback(query.ID, "✅ پکیج حذف شد"))
+					bot.Request(tgbotapi.NewCallback(query.ID, "✅ بسته حذف شد"))
 				}
 			} else if query.Data == "main_menu" {
 				if _, err := bot.Send(tgbotapi.NewDeleteMessage(chatID, messageID)); err != nil {
@@ -875,7 +875,48 @@ func main() {
 				setSession(userID, nil)
 				sendMainMenu(bot, chatID, nil, userName)
 
-			case "INPUT_NAME":
+			case "INPUT_PACKAGE_NAME":
+					name := strings.TrimSpace(update.Message.Text)
+					if name == "" {
+						bot.Send(tgbotapi.NewMessage(chatID, "❌ نام بسته نمی‌تواند خالی باشد. دوباره وارد کنید:"))
+						continue
+					}
+					session.Package.Name = name
+					session.Step = "INPUT_PACKAGE_VOLUME"
+					setSession(userID, session)
+					bot.Send(tgbotapi.NewMessage(chatID, "💾 حجم بسته را به گیگابایت وارد کنید:"))
+
+				case "INPUT_PACKAGE_VOLUME":
+					volStr := strings.TrimSpace(update.Message.Text)
+					vol, err := strconv.Atoi(volStr)
+					if err != nil || vol <= 0 {
+						bot.Send(tgbotapi.NewMessage(chatID, "❌ حجم نامعتبر. عدد مثبت وارد کنید:"))
+						continue
+					}
+					session.Package.Volume = vol
+					session.Step = "INPUT_PACKAGE_DURATION"
+					setSession(userID, session)
+					bot.Send(tgbotapi.NewMessage(chatID, "🗓 تعداد روزهای اعتبار بسته را وارد کنید:"))
+
+				case "INPUT_PACKAGE_DURATION":
+					durStr := strings.TrimSpace(update.Message.Text)
+					dur, err := strconv.Atoi(durStr)
+					if err != nil || dur <= 0 {
+						bot.Send(tgbotapi.NewMessage(chatID, "❌ مدت نامعتبر. عدد مثبت وارد کنید:"))
+						continue
+					}
+					session.Package.Duration = dur
+					session.Package.ID = fmt.Sprintf("custom_%d", time.Now().Unix())
+					err = packages.AddPackage(session.Package)
+					if err != nil {
+						bot.Send(tgbotapi.NewMessage(chatID, "❌ خطا در ذخیره بسته"))
+					} else {
+						bot.Send(tgbotapi.NewMessage(chatID, "✅ بسته جدید با موفقیت اضافه شد."))
+					}
+					setSession(userID, nil)
+					sendMainMenu(bot, chatID, nil, userName)
+
+				case "INPUT_NAME":
 				name := strings.TrimSpace(update.Message.Text)
 				if name == "" {
 					if _, err := bot.Send(tgbotapi.NewMessage(chatID, "❌ نام نمی‌تواند خالی باشد. دوباره وارد کنید:")); err != nil {

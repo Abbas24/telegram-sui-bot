@@ -444,6 +444,8 @@ func handleRemovePackageFlow(bot *tgbotapi.BotAPI, chatID int64, userID int64) {
 	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(rows...)
 	bot.Send(msg)
 }
+
+func handleSelectInbounds(bot *tgbotapi.BotAPI, chatID int64, userID int64, suiClient *sui.Client) {
 	inbounds, err := suiClient.GetInbounds()
 	if err != nil {
 		log.Printf("GetInbounds error: %v", err)
